@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import api from "../services/api";
+import Alert from "../components/Alert";
+import { CardSkeleton, TableSkeleton } from "../components/Skeleton";
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
@@ -8,42 +10,74 @@ export default function Home() {
   const [liveMatches, setLiveMatches] = useState([]);
   const [season, setSeason] = useState("2025");
   const [type, setType] = useState("TOTAL"); // TOTAL | HOME | AWAY
+  const [tableError, setTableError] = useState("");
+  const [liveError, setLiveError] = useState("");
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   // 🔁 Carrega classificação com filtros
   useEffect(() => {
     async function loadData() {
       setLoading(true);
+      setTableError("");
       try {
-        const res = await axios.get(`http://localhost:4000/api/standings/${season}/${type}`);
+        const res = await api.get(`/api/standings/${season}/${type}`);
         const data = res.data.table || [];
         setTable(data);
       } catch (err) {
         console.error("Erro ao carregar tabela:", err);
         setTable([]);
+        setTableError(
+          err.userMessage ||
+            "Não conseguimos carregar a classificação agora. Verifique sua conexão e tente novamente."
+        );
       } finally {
         setLoading(false);
       }
     }
     loadData();
-  }, [season, type]);
+  }, [season, type, refreshToken]);
 
   // ⚡ Carrega apenas partidas ao vivo
   useEffect(() => {
     async function loadLive() {
+      setLiveLoading(true);
+      setLiveError("");
       try {
-        const res = await axios.get("http://localhost:4000/api/matches");
+        const res = await api.get("/api/matches");
         const onlyLive = (res.data.matches || []).filter(
           (m) => m.status === "IN_PLAY" || m.status === "PAUSED"
         );
         setLiveMatches(onlyLive);
       } catch (err) {
         console.error("Erro ao buscar partidas ao vivo:", err);
+        setLiveMatches([]);
+        setLiveError(
+          err.userMessage ||
+            "Tivemos um problema para atualizar a lista de jogos ao vivo. Vamos tentar novamente em instantes."
+        );
+      } finally {
+        setLiveLoading(false);
       }
     }
     loadLive();
     const interval = setInterval(() => loadLive(), 60000);
     return () => clearInterval(interval);
   }, []);
+
+  const seasonOptions = useMemo(
+    () => Array.from({ length: 2025 - 2015 + 1 }, (_, i) => 2025 - i),
+    []
+  );
+
+  const typeOptions = useMemo(
+    () => [
+      { label: "Geral", value: "TOTAL" },
+      { label: "Mandante", value: "HOME" },
+      { label: "Visitante", value: "AWAY" },
+    ],
+    []
+  );
 
   return (
     <div className="flex flex-col lg:flex-row gap-4">
@@ -55,7 +89,7 @@ export default function Home() {
 
         {/* Filtros de temporada */}
         <div className="flex flex-wrap justify-center gap-2 mb-4">
-          {Array.from({ length: 2025 - 2015 + 1 }, (_, i) => 2025 - i).map((yr) => (
+          {seasonOptions.map((yr) => (
             <button
               key={yr}
               onClick={() => setSeason(String(yr))}
@@ -72,11 +106,7 @@ export default function Home() {
 
         {/* Filtros de tipo */}
         <div className="flex justify-center gap-3 mb-6">
-          {[
-            { label: "Geral", value: "TOTAL" },
-            { label: "Mandante", value: "HOME" },
-            { label: "Visitante", value: "AWAY" },
-          ].map((opt) => (
+          {typeOptions.map((opt) => (
             <button
               key={opt.value}
               onClick={() => setType(opt.value)}
@@ -92,8 +122,14 @@ export default function Home() {
         </div>
 
         {/* Tabela de classificação */}
-        {loading ? (
-          <p className="text-gray-800 dark:text-gray-200 text-center">Carregando...</p>
+        {tableError ? (
+          <Alert
+            title="Não foi possível carregar a tabela"
+            message={tableError}
+            onRetry={() => setRefreshToken((prev) => prev + 1)}
+          />
+        ) : loading ? (
+          <TableSkeleton rows={10} columns={9} />
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full border dark:border-gray-700 text-gray-900 dark:text-gray-100">
@@ -148,7 +184,11 @@ export default function Home() {
         <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-gray-100">
           ⚡ Jogos ao Vivo
         </h3>
-        {liveMatches.length === 0 ? (
+        {liveError ? (
+          <Alert title="Falha ao atualizar" message={liveError} tone="warning" />
+        ) : liveLoading ? (
+          <CardSkeleton count={3} />
+        ) : liveMatches.length === 0 ? (
           <p className="text-sm opacity-70 text-gray-700 dark:text-gray-300">
             Nenhuma partida em andamento
           </p>
