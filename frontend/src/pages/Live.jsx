@@ -1,51 +1,109 @@
-import { useEffect, useState, useRef } from "react";
-import axios from "axios";
+import { useEffect, useRef, useState } from "react";
+import { getApiUrl } from "../services/api";
+import Alert from "../components/Alert";
+import { CardSkeleton } from "../components/Skeleton";
 
 export default function Live() {
   const [matches, setMatches] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [liveError, setLiveError] = useState("");
+  const [lastUpdate, setLastUpdate] = useState(null);
   const previousScores = useRef({});
   const audioRef = useRef(null);
+  const eventSourceRef = useRef(null);
+  const retryTimeoutRef = useRef(null);
 
-  async function loadLive() {
-    setLoading(true);
-    try {
-      const res = await axios.get("http://localhost:4000/api/matches?live=true");
-      const newMatches = res.data.matches || [];
+  function notifyGoal(match, scoreText) {
+    if (!("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
 
-      // Detecta gols
-      newMatches.forEach((m) => {
-        const key = m.id;
-        const prev = previousScores.current[key];
-        const currentScore = `${m.score.fullTime.home ?? 0}-${m.score.fullTime.away ?? 0}`;
-        if (prev && prev !== currentScore) {
-          // Tocou gol
-          audioRef.current.play().catch(() => {});
-        }
-        previousScores.current[key] = currentScore;
-      });
-
-      setMatches(newMatches);
-    } catch (err) {
-      console.error("Erro ao buscar partidas ao vivo:", err);
-    } finally {
-      setLoading(false);
-    }
+    const title = `Gol na partida ${match.homeTeam.shortName} x ${match.awayTeam.shortName}!`;
+    const body = `${scoreText} (${match.status === "IN_PLAY" ? "ao vivo" : match.status})`;
+    new Notification(title, {
+      body,
+      icon: match.homeTeam.crest,
+    });
   }
 
   useEffect(() => {
-    loadLive();
-    const interval = setInterval(() => loadLive(), 60000); // atualiza a cada 60s
-    return () => clearInterval(interval);
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    const url = getApiUrl("/api/matches/stream");
+
+    function connect() {
+      setLiveError("");
+      const es = new EventSource(url);
+      eventSourceRef.current = es;
+
+      es.onmessage = (event) => {
+        setLoading(false);
+        setLiveError("");
+        try {
+          const payload = JSON.parse(event.data);
+          const newMatches = payload.matches || [];
+
+          newMatches.forEach((match) => {
+            const key = match.id;
+            const currentScore = `${match.score.fullTime.home ?? 0}-${match.score.fullTime.away ?? 0}`;
+            const prev = previousScores.current[key];
+            if (prev && prev !== currentScore) {
+              audioRef.current?.play().catch(() => {});
+              notifyGoal(match, currentScore.replace("-", " x "));
+            }
+            previousScores.current[key] = currentScore;
+          });
+
+          setMatches(newMatches);
+          setLastUpdate(new Date().toLocaleTimeString("pt-BR"));
+        } catch (err) {
+          console.error("Erro ao tratar atualização ao vivo:", err);
+        }
+      };
+
+      es.onerror = () => {
+        setLiveError(
+          "Perdemos a conexão com o placar ao vivo. Tentaremos reconectar automaticamente."
+        );
+        setLoading(false);
+        es.close();
+        if (!retryTimeoutRef.current) {
+          retryTimeoutRef.current = setTimeout(() => {
+            retryTimeoutRef.current = null;
+            connect();
+          }, 5000);
+        }
+      };
+    }
+
+    connect();
+
+    return () => {
+      eventSourceRef.current?.close();
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
+    };
   }, []);
 
   return (
     <section>
       <audio ref={audioRef} src="/sounds/gol.mp3" preload="auto" />
-      <h2 className="text-2xl font-bold mb-4">⚡ Partidas ao Vivo</h2>
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-2xl font-bold">⚡ Partidas ao Vivo</h2>
+        {lastUpdate ? (
+          <span className="text-xs text-gray-500 dark:text-gray-400">Atualizado às {lastUpdate}</span>
+        ) : null}
+      </div>
 
-      {loading ? (
-        <p>Carregando...</p>
+      {liveError ? (
+        <Alert title="Conexão perdida" message={liveError} tone="warning" />
+      ) : loading ? (
+        <CardSkeleton count={3} />
       ) : matches.length === 0 ? (
         <p>Nenhuma partida em andamento agora.</p>
       ) : (
