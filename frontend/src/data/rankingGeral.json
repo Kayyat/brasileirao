@@ -1,0 +1,12 @@
+[
+  { "pos": 1, "time": "Palmeiras", "pontos": 1845, "vitorias": 522, "empates": 360, "derrotas": 292, "gols_pro": 1620, "gols_contra": 1124 },
+  { "pos": 2, "time": "Flamengo", "pontos": 1812, "vitorias": 503, "empates": 354, "derrotas": 306, "gols_pro": 1598, "gols_contra": 1178 },
+  { "pos": 3, "time": "São Paulo", "pontos": 1765, "vitorias": 480, "empates": 360, "derrotas": 321, "gols_pro": 1511, "gols_contra": 1189 },
+  { "pos": 4, "time": "Internacional", "pontos": 1732, "vitorias": 467, "empates": 358, "derrotas": 336, "gols_pro": 1452, "gols_contra": 1180 },
+  { "pos": 5, "time": "Atlético-MG", "pontos": 1718, "vitorias": 462, "empates": 351, "derrotas": 349, "gols_pro": 1478, "gols_contra": 1222 },
+  { "pos": 6, "time": "Grêmio", "pontos": 1670, "vitorias": 451, "empates": 340, "derrotas": 364, "gols_pro": 1419, "gols_contra": 1205 },
+  { "pos": 7, "time": "Corinthians", "pontos": 1648, "vitorias": 441, "empates": 345, "derrotas": 369, "gols_pro": 1378, "gols_contra": 1207 },
+  { "pos": 8, "time": "Fluminense", "pontos": 1599, "vitorias": 426, "empates": 330, "derrotas": 382, "gols_pro": 1342, "gols_contra": 1256 },
+  { "pos": 9, "time": "Athletico-PR", "pontos": 1574, "vitorias": 420, "empates": 315, "derrotas": 403, "gols_pro": 1335, "gols_contra": 1260 },
+  { "pos": 10, "time": "Santos", "pontos": 1556, "vitorias": 415, "empates": 310, "derrotas": 408, "gols_pro": 1378, "gols_contra": 1311 }
+]

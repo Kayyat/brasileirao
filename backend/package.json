@@ -1,0 +1,19 @@
+{
+  "name": "brasileirao-backend",
+  "version": "1.0.0",
+  "description": "API do Campeonato Brasileiro de Pontos Corridos (Série A) - Backend em Node.js + Express",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js"
+  },
+  "author": "AmazeTech",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^4.19.2"
+  }
+}
